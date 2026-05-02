@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+supabase
+httpx
+sentence-transformers
+resend
+sentry-sdk[fastapi]
+stripe
+pytz
+pydantic
+pytest
+pytest-cov
+ruff
