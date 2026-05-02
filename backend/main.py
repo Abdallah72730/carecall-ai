@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from db import supabase_admin
+from routers import vapi as vapi_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(vapi_router.router)
 
 
 @app.get("/health")
