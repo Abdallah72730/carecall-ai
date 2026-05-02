@@ -1,0 +1,8 @@
+-- Migration 001: initial schema.
+--
+-- The initial schema lives in backend/db/schema.sql (kept as the canonical
+-- snapshot). On a fresh project, run schema.sql in the Supabase SQL editor.
+--
+-- Future schema changes go here as incremental deltas:
+--   002_add_some_column.sql, 003_..., etc.
+-- schema.sql is regenerated to match after each migration is applied.
