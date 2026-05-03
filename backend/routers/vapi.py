@@ -17,12 +17,15 @@ GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
 
-@router.post("/llm")
+@router.post("/chat/completions")
 async def llm_proxy(request: Request) -> StreamingResponse:
     """OpenAI-compatible chat completions, proxied to Groq.
 
-    Vapi sends the live conversation here. We force-set the model to Groq's
-    free-tier Llama 3.3 70B and stream the SSE response back unchanged.
+    Vapi posts the live conversation here. The Vapi custom-LLM provider
+    appends `/chat/completions` to the configured base URL, so this route
+    lives at `/vapi/chat/completions` and the assistant's url is `/vapi`.
+    We force the model to Groq's free-tier Llama 3.3 70B and stream the
+    SSE response back unchanged.
     """
     body: dict[str, Any] = await request.json()
     body["model"] = GROQ_MODEL
