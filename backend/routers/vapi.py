@@ -12,6 +12,8 @@ from fastapi.responses import StreamingResponse
 from config import require
 from db import supabase_admin
 from services.clinics import clinic_id_for_assistant
+from services.email import send_message_alert
+from services.hours import get_clinic_for_email, is_clinic_open
 from services.knowledge import format_context, search_faqs
 
 logger = logging.getLogger(__name__)
@@ -79,11 +81,27 @@ async def llm_proxy(request: Request) -> StreamingResponse:
     clinic_id = clinic_id_for_assistant(assistant_id)
     if clinic_id and isinstance(body.get("messages"), list) and body["messages"]:
         user_text = _last_user_text(body["messages"])
+        # Inject FAQ context for the user's most recent question
         if user_text:
             faqs = search_faqs(clinic_id, user_text)
             if faqs:
                 body["messages"] = _inject_kb_context(body["messages"], format_context(faqs))
                 logger.info("Injected %d FAQ(s) for clinic=%s", len(faqs), clinic_id)
+        # Inject open/closed status so the assistant knows when to take a message
+        try:
+            open_now = is_clinic_open(clinic_id)
+        except Exception as exc:
+            logger.warning("hours check failed for clinic=%s: %s", clinic_id, exc)
+            open_now = True
+        status_msg = (
+            "The clinic is currently OPEN. Answer questions normally."
+            if open_now
+            else "The clinic is currently CLOSED. After answering any quick "
+            "knowledge-base questions, gently offer to take a message: ask "
+            "for the caller's name, phone number, and reason for calling, "
+            "then call the save_message tool with those values."
+        )
+        body["messages"].insert(0, {"role": "system", "content": status_msg})
 
     headers = {
         "Authorization": f"Bearer {require('GROQ_API_KEY')}",
@@ -151,6 +169,17 @@ async def end_of_call(request: Request) -> dict:
     return {"received": True}
 
 
+@router.post("/save-message")
+async def save_message_route(request: Request) -> dict:
+    """Direct endpoint Vapi can hit as the save_message tool's server URL."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"results": []}
+    message = payload.get("message", {}) if isinstance(payload, dict) else {}
+    return _handle_tool_calls(message)
+
+
 def _handle_tool_calls(message: dict[str, Any]) -> dict:
     """Resolve get_clinic_info / save_message tool calls. Always return results."""
     assistant_id = (message.get("call") or {}).get("assistantId") or (
@@ -182,9 +211,75 @@ def _handle_tool_calls(message: dict[str, Any]) -> dict:
             faqs = search_faqs(clinic_id, query)
             text = format_context(faqs) or "No matching information in the knowledge base."
             results.append({"toolCallId": tc_id, "result": text})
+        elif name == "save_message" and clinic_id:
+            results.append(
+                {"toolCallId": tc_id, "result": _save_after_hours_message(clinic_id, args, message)}
+            )
         else:
             results.append({"toolCallId": tc_id, "result": ""})
     return {"results": results}
+
+
+def _save_after_hours_message(
+    clinic_id: str,
+    args: dict[str, Any],
+    message: dict[str, Any],
+) -> str:
+    caller_name = (args or {}).get("caller_name") or (args or {}).get("name")
+    caller_phone = (args or {}).get("caller_phone") or (args or {}).get("phone")
+    if not caller_phone:
+        caller_phone = (message.get("customer") or {}).get("number")
+    reason = (args or {}).get("message_reason") or (args or {}).get("reason")
+
+    vapi_call_id = (message.get("call") or {}).get("id")
+    call_log_id = None
+    if vapi_call_id:
+        try:
+            existing = (
+                supabase_admin()
+                .table("call_logs")
+                .select("id")
+                .eq("vapi_call_id", vapi_call_id)
+                .limit(1)
+                .execute()
+            ).data
+            if existing:
+                call_log_id = existing[0]["id"]
+        except Exception:
+            call_log_id = None
+
+    row = {
+        "clinic_id": clinic_id,
+        "call_log_id": call_log_id,
+        "caller_name": caller_name,
+        "caller_phone": caller_phone,
+        "message_reason": reason,
+    }
+    try:
+        inserted = supabase_admin().table("after_hours_messages").insert(row).execute()
+        message_id = inserted.data[0]["id"] if inserted.data else None
+    except Exception as exc:
+        logger.warning("after_hours_messages insert failed: %s", exc)
+        return "Sorry, I had trouble saving that message. Please try again later."
+
+    clinic = get_clinic_for_email(clinic_id)
+    if clinic and clinic.get("email"):
+        sent = send_message_alert(
+            clinic_email=clinic["email"],
+            clinic_name=clinic.get("name") or "the clinic",
+            caller_name=caller_name,
+            caller_phone=caller_phone,
+            message_reason=reason,
+        )
+        if sent and message_id:
+            try:
+                supabase_admin().table("after_hours_messages").update(
+                    {"email_sent": True}
+                ).eq("id", message_id).execute()
+            except Exception as exc:
+                logger.warning("email_sent flag update failed: %s", exc)
+
+    return "Message saved. Someone from the clinic will call you back during business hours."
 
 
 def _persist_call_log(message: dict[str, Any]) -> None:
