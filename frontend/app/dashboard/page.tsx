@@ -1,30 +1,58 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function DashboardPage() {
+function startOfDayUTC(d: Date) {
+  const x = new Date(d);
+  x.setUTCHours(0, 0, 0, 0);
+  return x;
+}
+
+export default async function DashboardOverviewPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const today = startOfDayUTC(new Date()).toISOString();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [callsToday, callsWeek, messagesWeek, unreadMessages] = await Promise.all([
+    supabase
+      .from("call_logs")
+      .select("id", { count: "exact", head: true })
+      .gte("started_at", today),
+    supabase
+      .from("call_logs")
+      .select("id", { count: "exact", head: true })
+      .gte("started_at", weekAgo),
+    supabase
+      .from("after_hours_messages")
+      .select("id", { count: "exact", head: true })
+      .gte("captured_at", weekAgo),
+    supabase
+      .from("after_hours_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("is_read", false),
+  ]);
+
+  const stats = [
+    { label: "Calls today", value: callsToday.count ?? 0 },
+    { label: "Calls (last 7 days)", value: callsWeek.count ?? 0 },
+    { label: "Messages (last 7 days)", value: messagesWeek.count ?? 0 },
+    { label: "Unread messages", value: unreadMessages.count ?? 0 },
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-50 p-8">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500">{user.email}</p>
-        </header>
-        <section className="rounded-lg bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
-            You are signed in.
-          </h2>
-          <p className="mt-2 text-slate-600">
-            The full clinic admin portal — FAQs, hours, call logs, messages —
-            arrives in M7. For now, this is a placeholder.
-          </p>
-        </section>
+    <section className="space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900">Overview</h1>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-lg border border-slate-200 bg-white p-5"
+          >
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">
+              {s.value}
+            </p>
+          </div>
+        ))}
       </div>
-    </main>
+    </section>
   );
 }
