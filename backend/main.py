@@ -14,6 +14,18 @@ from routers import vapi as vapi_router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+if settings.SENTRY_DSN_BACKEND:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN_BACKEND,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
+        environment="production",
+    )
+    logger.info("Sentry initialized")
+
 app = FastAPI(title="CareCall AI", version="0.1.0")
 
 app.add_middleware(
