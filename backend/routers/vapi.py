@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from config import require
 from db import supabase_admin
-from services.clinics import clinic_id_for_assistant
+from services.clinics import clinic_id_for_assistant, is_clinic_live
 from services.email import send_message_alert
 from services.hours import get_clinic_for_email, is_clinic_open
 from services.knowledge import format_context, search_faqs
@@ -79,6 +79,24 @@ async def llm_proxy(request: Request) -> StreamingResponse:
 
     assistant_id = (raw.get("assistant") or {}).get("id")
     clinic_id = clinic_id_for_assistant(assistant_id)
+
+    # Subscription gate: refuse politely if clinic is canceled/disabled.
+    if clinic_id and not is_clinic_live(clinic_id):
+        body["messages"] = list(body.get("messages") or []) + [
+            {
+                "role": "system",
+                "content": (
+                    "This clinic's CareCall AI subscription is not active. "
+                    "Apologize briefly to the caller, tell them the clinic's "
+                    "automated assistant is currently unavailable, and ask "
+                    "them to call again later. Do not collect any messages "
+                    "or use any tools. Keep the reply to one sentence."
+                ),
+            }
+        ]
+        # Skip FAQ / hours injection — go straight to LLM.
+        clinic_id = None
+
     if clinic_id and isinstance(body.get("messages"), list) and body["messages"]:
         user_text = _last_user_text(body["messages"])
         # Inject FAQ context for the user's most recent question

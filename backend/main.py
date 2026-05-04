@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from db import supabase_admin
 from routers import admin as admin_router
+from routers import billing as billing_router
 from routers import vapi as vapi_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -38,6 +39,7 @@ app.add_middleware(
 
 app.include_router(vapi_router.router)
 app.include_router(admin_router.router)
+app.include_router(billing_router.router)
 
 
 @app.get("/health")
