@@ -220,18 +220,59 @@ def _handle_tool_calls(message: dict[str, Any]) -> dict:
     return {"results": results}
 
 
+def _clean(value: Any) -> str:
+    return str(value).strip() if value is not None else ""
+
+
 def _save_after_hours_message(
     clinic_id: str,
     args: dict[str, Any],
     message: dict[str, Any],
 ) -> str:
-    caller_name = (args or {}).get("caller_name") or (args or {}).get("name")
-    caller_phone = (args or {}).get("caller_phone") or (args or {}).get("phone")
+    caller_name = _clean((args or {}).get("caller_name") or (args or {}).get("name"))
+    caller_phone = _clean((args or {}).get("caller_phone") or (args or {}).get("phone"))
     if not caller_phone:
-        caller_phone = (message.get("customer") or {}).get("number")
-    reason = (args or {}).get("message_reason") or (args or {}).get("reason")
+        caller_phone = _clean((message.get("customer") or {}).get("number"))
+    reason = _clean((args or {}).get("message_reason") or (args or {}).get("reason"))
+
+    # Hard requirement: name + phone. Reason is also required by the prompt
+    # but we accept a short fallback rather than hard-fail there.
+    if not caller_name or not caller_phone:
+        missing = []
+        if not caller_name:
+            missing.append("the caller's name")
+        if not caller_phone:
+            missing.append("a phone number")
+        return (
+            "I cannot save the message yet — I still need "
+            + " and ".join(missing)
+            + ". Please ask the caller for the missing detail and try again."
+        )
+    if not reason:
+        reason = "(no reason given)"
 
     vapi_call_id = (message.get("call") or {}).get("id")
+
+    # One message per call: if we already saved one for this call, don't duplicate.
+    if vapi_call_id:
+        try:
+            already = (
+                supabase_admin()
+                .table("after_hours_messages")
+                .select("id, call_logs!inner(vapi_call_id)")
+                .eq("clinic_id", clinic_id)
+                .eq("call_logs.vapi_call_id", vapi_call_id)
+                .limit(1)
+                .execute()
+            ).data
+        except Exception:
+            already = None
+        if already:
+            return (
+                "A message has already been saved for this call. Only take "
+                "another if the caller explicitly asks to leave a second one."
+            )
+
     call_log_id = None
     if vapi_call_id:
         try:
@@ -279,7 +320,11 @@ def _save_after_hours_message(
             except Exception as exc:
                 logger.warning("email_sent flag update failed: %s", exc)
 
-    return "Message saved. Someone from the clinic will call you back during business hours."
+    return (
+        f"Message saved for {caller_name} at {caller_phone}. "
+        "Someone from the clinic will call back during business hours. "
+        "Do not take another message unless the caller asks for one."
+    )
 
 
 def _persist_call_log(message: dict[str, Any]) -> None:
