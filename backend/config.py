@@ -33,6 +33,9 @@ class _Settings:
 
     SENTRY_DSN_BACKEND: str = os.getenv("SENTRY_DSN_BACKEND", "")
 
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
     TEST_CLINIC_ID: str = os.getenv("TEST_CLINIC_ID", "")
     SENTENCE_TRANSFORMERS_HOME: str = os.getenv("SENTENCE_TRANSFORMERS_HOME", "")

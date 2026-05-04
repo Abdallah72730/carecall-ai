@@ -15,6 +15,7 @@ from services.clinics import clinic_id_for_assistant
 from services.email import send_message_alert
 from services.hours import get_clinic_for_email, is_clinic_open
 from services.knowledge import format_context, search_faqs
+from services.notify import send_telegram
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vapi", tags=["vapi"])
@@ -304,10 +305,11 @@ def _save_after_hours_message(
         return "Sorry, I had trouble saving that message. Please try again later."
 
     clinic = get_clinic_for_email(clinic_id)
+    clinic_name = (clinic or {}).get("name") or "the clinic"
     if clinic and clinic.get("email"):
         sent = send_message_alert(
             clinic_email=clinic["email"],
-            clinic_name=clinic.get("name") or "the clinic",
+            clinic_name=clinic_name,
             caller_name=caller_name,
             caller_phone=caller_phone,
             message_reason=reason,
@@ -319,6 +321,12 @@ def _save_after_hours_message(
                 ).eq("id", message_id).execute()
             except Exception as exc:
                 logger.warning("email_sent flag update failed: %s", exc)
+
+    send_telegram(
+        f"*New after-hours message — {clinic_name}*\n"
+        f"From: {caller_name} ({caller_phone})\n"
+        f"Reason: {reason}"
+    )
 
     return (
         f"Message saved for {caller_name} at {caller_phone}. "
