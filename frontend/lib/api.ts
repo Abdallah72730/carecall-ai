@@ -19,17 +19,26 @@ export async function api<T = unknown>(
   init: RequestInit = {},
 ): Promise<T> {
   const auth = await authHeader();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...auth,
-      ...(init.headers ?? {}),
-    },
-  });
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...auth,
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    throw new Error(
+      `Network error reaching ${url || "(empty API base)"} — ` +
+        `check NEXT_PUBLIC_API_BASE_URL on this deploy and CORS on the backend.`,
+    );
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    throw new Error(text || `${res.status} ${res.statusText} on ${url}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
