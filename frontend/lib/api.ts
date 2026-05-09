@@ -2,7 +2,10 @@
 
 import { createClient } from "./supabase/client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+// Defaults to the Phase 1 Railway deployment so local dev and any deploy
+// without NEXT_PUBLIC_API_BASE_URL set still talks to a real backend.
+const DEFAULT_API_BASE = "https://backend-production-d0cf2.up.railway.app";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || DEFAULT_API_BASE;
 
 async function authHeader(): Promise<HeadersInit> {
   const supabase = createClient();
