@@ -36,7 +36,7 @@ app.add_middleware(
     # .vercel.app), and the carecallai.ca apex / subdomains will eventually
     # serve the prod app. Match the whole family so preflight stops failing
     # on URLs that aren't the static alias.
-    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app|https://([a-z0-9-]+\.)*carecallai\.ca",
+    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app|https://([a-z0-9-]+\.)*carecallai\.net",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

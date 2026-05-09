@@ -54,6 +54,30 @@ class CheckoutRequest(BaseModel):
     price_id: str
 
 
+@router.post("/portal")
+async def billing_portal(
+    authorization: Annotated[str | None, Header()] = None,
+):
+    """Open the Stripe-hosted Customer Portal: update card, cancel,
+    view invoices, switch plan. Requires the clinic to already have a
+    stripe_customer_id (i.e. has been to checkout at least once)."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    clinic = _resolve_clinic(token)
+    if not clinic.get("stripe_customer_id"):
+        raise HTTPException(
+            400,
+            "No Stripe customer linked yet. Start a subscription on /pricing first.",
+        )
+    s = _stripe()
+    session = s.billing_portal.Session.create(
+        customer=clinic["stripe_customer_id"],
+        return_url=f"{settings.FRONTEND_URL}/dashboard",
+    )
+    return {"url": session.url}
+
+
 @router.post("/checkout")
 async def create_checkout(
     payload: CheckoutRequest,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV = [
@@ -84,19 +85,62 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
           );
         })}
       </nav>
-      <div className="border-t border-slate-200 px-4 py-4 text-sm">
+      <div className="space-y-2 border-t border-slate-200 px-4 py-4 text-sm">
         {userEmail ? (
           <p className="truncate text-slate-500" title={userEmail}>
             {userEmail}
           </p>
         ) : null}
+        <BillingPortalLink />
+        <Link
+          href="/pricing"
+          className="block text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+        >
+          Plans
+        </Link>
         <button
           onClick={signOut}
-          className="mt-2 text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+          className="block text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
         >
           Sign out
         </button>
       </div>
     </aside>
+  );
+}
+
+function BillingPortalLink() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function open() {
+    setError(null);
+    setLoading(true);
+    try {
+      const { url } = await api<{ url: string }>("/billing/portal", {
+        method: "POST",
+      });
+      window.location.href = url;
+    } catch (e) {
+      setError((e as Error).message);
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <button
+        onClick={open}
+        disabled={loading}
+        className="block text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline disabled:opacity-50"
+      >
+        {loading ? "Opening..." : "Manage billing"}
+      </button>
+      {error ? (
+        <p className="mt-1 text-xs text-red-600" title={error}>
+          {error.length > 80 ? error.slice(0, 80) + "…" : error}
+        </p>
+      ) : null}
+    </div>
   );
 }
