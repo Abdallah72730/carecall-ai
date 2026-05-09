@@ -32,6 +32,11 @@ app = FastAPI(title="CareCall AI", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    # Vercel issues a fresh subdomain on every deploy (frontend-<hash>-...
+    # .vercel.app), and the carecallai.ca apex / subdomains will eventually
+    # serve the prod app. Match the whole family so preflight stops failing
+    # on URLs that aren't the static alias.
+    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app|https://([a-z0-9-]+\.)*carecallai\.ca",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
