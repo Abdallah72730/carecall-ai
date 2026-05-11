@@ -182,6 +182,10 @@ def update_assistant_transfer(clinic_id: str) -> bool:
     """Refresh the transferCall tool on an existing assistant after a
     clinic's transfer_number is changed in the dashboard. Returns True
     if a Vapi PATCH was sent.
+
+    Vapi requires the WHOLE model.provider/url/model triple in any
+    PATCH that touches model.* — partial updates 400. So we rebuild
+    the model block from _base_payload() with the right tools attached.
     """
     client = supabase_admin()
     res = (
@@ -196,47 +200,12 @@ def update_assistant_transfer(clinic_id: str) -> bool:
     if not clinic or not clinic.get("vapi_assistant_id"):
         return False
 
-    payload: dict[str, Any] = {"model": {"tools": []}}
-    # We re-send the save_message tool every time because Vapi PATCH
-    # replaces the whole tools array.
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "save_message",
-                "description": "Save the after-hours message.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "caller_name": {"type": "string"},
-                        "caller_phone": {"type": "string"},
-                        "message_reason": {"type": "string"},
-                    },
-                    "required": [
-                        "caller_name",
-                        "caller_phone",
-                        "message_reason",
-                    ],
-                },
-            },
-            "server": {"url": f"{BACKEND_BASE}/vapi/save-message"},
-        }
-    ]
-    if clinic.get("transfer_number"):
-        tools.append(
-            {
-                "type": "transferCall",
-                "destinations": [
-                    {
-                        "type": "number",
-                        "number": clinic["transfer_number"],
-                        "message": "Connecting you to the front desk now.",
-                        "transferPlan": {"mode": "blind-transfer"},
-                    }
-                ],
-            }
-        )
-    payload["model"]["tools"] = tools
+    payload = _base_payload(clinic.get("name") or "the clinic")
+    _attach_transfer_tool(payload, clinic.get("transfer_number"))
+
+    # Only send the model block — voice / transcriber / firstMessage
+    # shouldn't change here.
+    patch = {"model": payload["model"]}
 
     headers = {
         "Authorization": f"Bearer {require('VAPI_API_KEY')}",
@@ -244,7 +213,7 @@ def update_assistant_transfer(clinic_id: str) -> bool:
     }
     resp = httpx.patch(
         f"{VAPI_API_BASE}/assistant/{clinic['vapi_assistant_id']}",
-        json=payload,
+        json=patch,
         headers=headers,
         timeout=30.0,
     )
