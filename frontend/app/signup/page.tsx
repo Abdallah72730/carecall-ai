@@ -10,6 +10,8 @@ export default function SignupPage() {
   const [clinicName, setClinicName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [transferNumber, setTransferNumber] = useState("");
+  const [enableTransfer, setEnableTransfer] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,11 +29,16 @@ export default function SignupPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      const cleanedTransfer = enableTransfer ? transferNumber.trim() : "";
       const { data, error: signupErr } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { clinic_name: clinicName, clinic_phone: phone },
+          data: {
+            clinic_name: clinicName,
+            clinic_phone: phone,
+            clinic_transfer_number: cleanedTransfer,
+          },
         },
       });
       if (signupErr) throw signupErr;
@@ -104,11 +111,36 @@ export default function SignupPage() {
           />
           <input
             type="tel"
-            placeholder="Clinic phone number"
+            placeholder="Clinic phone number (the public number patients dial)"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="w-full rounded border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
           />
+
+          <label className="flex items-start gap-2 pt-1 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={enableTransfer}
+              onChange={(e) => setEnableTransfer(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              Forward calls to a human receptionist when the clinic is open.
+              The AI handles after-hours calls either way.
+            </span>
+          </label>
+
+          {enableTransfer ? (
+            <input
+              type="tel"
+              placeholder="Receptionist forwarding number (e.g. +15875551234)"
+              value={transferNumber}
+              onChange={(e) => setTransferNumber(e.target.value)}
+              required={enableTransfer}
+              className="w-full rounded border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            />
+          ) : null}
+
           <input
             type="password"
             placeholder="Password (min 8 characters)"

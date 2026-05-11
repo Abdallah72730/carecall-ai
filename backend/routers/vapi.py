@@ -128,21 +128,24 @@ async def llm_proxy(request: Request) -> StreamingResponse:
         transfer_number = get_transfer_number(clinic_id) if open_now else None
         if open_now and transfer_number:
             status_msg = (
-                "The clinic is currently OPEN and a human receptionist is "
-                "available. Greet the caller briefly, then if they have a "
-                "simple question that maps directly to the knowledge base, "
-                "answer it in one sentence. For anything more involved — "
-                "appointments, billing details, follow-up calls, personal "
-                "questions — confirm the caller would like to speak to the "
-                "front desk and then call the transferCall tool to put them "
-                "through. Do NOT collect messages during open hours; the "
-                "front desk handles that."
+                "The clinic is currently OPEN. Answer questions from the "
+                "knowledge base in one short sentence. If at any point the "
+                "caller asks to speak to a person, receptionist, the front "
+                "desk, or a human — or says something the knowledge base "
+                "cannot answer — call the transferCall tool to forward "
+                "them. Do not announce the transfer with a long preamble; "
+                "say one short line like 'Connecting you now' and call the "
+                "tool. After the transfer the AI session ends, so do not "
+                "speak again after the tool call. Do not collect messages "
+                "during open hours."
             )
         elif open_now:
             status_msg = (
                 "The clinic is currently OPEN. Answer questions from the "
-                "knowledge base in one sentence each. Do not collect "
-                "messages during open hours."
+                "knowledge base in one short sentence each. If the caller "
+                "asks to speak to a human, apologize that no transfer is "
+                "available and offer to take a message instead. Do not "
+                "collect messages otherwise."
             )
         else:
             status_msg = (
