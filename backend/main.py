@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,7 +28,25 @@ if settings.SENTRY_DSN_BACKEND:
     )
     logger.info("Sentry initialized")
 
-app = FastAPI(title="CareCall AI", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm the embedding model during container boot so the first live
+    # call doesn't pay the ~10-12 second cold-start cost. Vapi times out
+    # well before that and the caller hears silence. Railway's healthcheck
+    # waits on this, which is the right behavior — don't accept traffic
+    # until we can actually answer it.
+    try:
+        from services.embedding import get_model
+
+        logger.info("Warming sentence-transformers model...")
+        get_model().encode("warmup", normalize_embeddings=True)
+        logger.info("Embedding model warm.")
+    except Exception as exc:
+        logger.warning("Embedding warmup failed (will retry on first call): %s", exc)
+    yield
+
+
+app = FastAPI(title="CareCall AI", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

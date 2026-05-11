@@ -18,7 +18,7 @@ from services.clinics import (
 )
 from services.email import send_message_alert
 from services.hours import get_clinic_for_email, is_clinic_open
-from services.knowledge import format_context, search_faqs
+from services.knowledge import format_all_faqs, get_all_faqs
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vapi", tags=["vapi"])
@@ -84,8 +84,8 @@ async def llm_proxy(request: Request) -> StreamingResponse:
     """OpenAI-compatible chat completions, proxied to Groq.
 
     Before forwarding, look up the clinic via the Vapi assistant id
-    and inject any relevant FAQs as a system message so the model can
-    answer from the knowledge base.
+    and inject the knowledge base + open/closed status as a system
+    message so the model can answer from the clinic's own facts.
     """
     raw: dict[str, Any] = await request.json()
     body = {k: v for k, v in raw.items() if k in OPENAI_ALLOWED_FIELDS}
@@ -112,13 +112,12 @@ async def llm_proxy(request: Request) -> StreamingResponse:
         clinic_id = None
 
     if clinic_id and isinstance(body.get("messages"), list) and body["messages"]:
-        user_text = _last_user_text(body["messages"])
-        # Inject FAQ context for the user's most recent question
-        if user_text:
-            faqs = search_faqs(clinic_id, user_text)
-            if faqs:
-                body["messages"] = _inject_kb_context(body["messages"], format_context(faqs))
-                logger.info("Injected %d FAQ(s) for clinic=%s", len(faqs), clinic_id)
+        # Inline the whole knowledge base every turn — cached per clinic
+        # so it's a single Supabase round-trip every 5 min, not a
+        # ~14-second embedding pass on every user utterance.
+        faqs = get_all_faqs(clinic_id)
+        if faqs:
+            body["messages"] = _inject_kb_context(body["messages"], format_all_faqs(faqs))
         # Inject open/closed status so the assistant knows when to take a message
         try:
             open_now = is_clinic_open(clinic_id)
