@@ -11,7 +11,11 @@ from fastapi.responses import StreamingResponse
 
 from config import require, settings
 from db import supabase_admin
-from services.clinics import clinic_id_for_assistant, is_clinic_live
+from services.clinics import (
+    clinic_id_for_assistant,
+    get_transfer_number,
+    is_clinic_live,
+)
 from services.email import send_message_alert
 from services.hours import get_clinic_for_email, is_clinic_open
 from services.knowledge import format_context, search_faqs
@@ -121,14 +125,33 @@ async def llm_proxy(request: Request) -> StreamingResponse:
         except Exception as exc:
             logger.warning("hours check failed for clinic=%s: %s", clinic_id, exc)
             open_now = True
-        status_msg = (
-            "The clinic is currently OPEN. Answer questions normally."
-            if open_now
-            else "The clinic is currently CLOSED. After answering any quick "
-            "knowledge-base questions, gently offer to take a message: ask "
-            "for the caller's name, phone number, and reason for calling, "
-            "then call the save_message tool with those values."
-        )
+        transfer_number = get_transfer_number(clinic_id) if open_now else None
+        if open_now and transfer_number:
+            status_msg = (
+                "The clinic is currently OPEN and a human receptionist is "
+                "available. Greet the caller briefly, then if they have a "
+                "simple question that maps directly to the knowledge base, "
+                "answer it in one sentence. For anything more involved — "
+                "appointments, billing details, follow-up calls, personal "
+                "questions — confirm the caller would like to speak to the "
+                "front desk and then call the transferCall tool to put them "
+                "through. Do NOT collect messages during open hours; the "
+                "front desk handles that."
+            )
+        elif open_now:
+            status_msg = (
+                "The clinic is currently OPEN. Answer questions from the "
+                "knowledge base in one sentence each. Do not collect "
+                "messages during open hours."
+            )
+        else:
+            status_msg = (
+                "The clinic is currently CLOSED. After answering any quick "
+                "knowledge-base questions, gently offer to take a message: "
+                "ask for the caller's name, phone number, and reason for "
+                "calling, then call the save_message tool with those values. "
+                "Do not transfer calls when the clinic is closed."
+            )
         body["messages"].insert(0, {"role": "system", "content": status_msg})
 
     media_type = "text/event-stream" if body.get("stream") else "application/json"

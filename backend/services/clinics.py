@@ -61,3 +61,23 @@ def is_clinic_live(clinic_id: str) -> bool:
     if row.get("is_active") is False:
         return False
     return (row.get("subscription_status") or "trial") in LIVE_STATUSES
+
+
+def get_transfer_number(clinic_id: str) -> str | None:
+    """Return the clinic's human-receptionist transfer number, or None."""
+    try:
+        res = (
+            supabase_admin()
+            .table("clinics")
+            .select("transfer_number")
+            .eq("id", clinic_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("transfer_number lookup failed for %s: %s", clinic_id, exc)
+        return None
+    if not res.data:
+        return None
+    raw = (res.data[0].get("transfer_number") or "").strip()
+    return raw or None
