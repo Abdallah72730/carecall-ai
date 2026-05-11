@@ -72,7 +72,8 @@ docs/                     ADRs, Vapi prompts, sample webhook payloads
 | Layer | Service | Notes |
 |---|---|---|
 | Voice pipeline | Vapi.ai | Twilio + Deepgram Nova-2 STT + Cartesia Sonic TTS |
-| LLM (live calls) | Groq · Llama 3.3 70B Versatile | proxied via `/vapi/chat/completions` |
+| LLM (primary) | Groq · Llama 3.3 70B Versatile | proxied via `/vapi/chat/completions` |
+| LLM (fallback) | Cerebras Inference · Llama 3.3 70B | US-based, kicks in on Groq 429/5xx. DeepSeek deliberately not used — PRC data residency clashes with PIPEDA + Alberta HIA. |
 | Embeddings | sentence-transformers all-MiniLM-L6-v2 | local, 384-dim, normalized |
 | Vector search | Supabase pgvector, IVFFlat lists=100, cosine | RPC `search_faqs` |
 | Database | Supabase Postgres | RLS on every tenant table |
@@ -154,9 +155,11 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# LLM
+# LLM — Groq primary, Cerebras fallback. DeepSeek removed pre-launch
+# because PRC data residency conflicts with PIPEDA / Alberta HIA for
+# the clinic custodians who deploy this service.
 GROQ_API_KEY=
-DEEPSEEK_API_KEY=        # optional, future fallback
+CEREBRAS_API_KEY=        # optional but recommended once you have ≥3 clinics
 
 # Voice
 VAPI_API_KEY=

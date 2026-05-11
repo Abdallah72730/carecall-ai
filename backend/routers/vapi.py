@@ -9,7 +9,7 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from config import require
+from config import require, settings
 from db import supabase_admin
 from services.clinics import clinic_id_for_assistant, is_clinic_live
 from services.email import send_message_alert
@@ -21,6 +21,16 @@ router = APIRouter(prefix="/vapi", tags=["vapi"])
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+# Cerebras Inference (US-based) is the fallback when Groq rate-limits or
+# errors. Same Llama 3.3 70B family, OpenAI-compatible API.
+CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1"
+CEREBRAS_MODEL = "llama-3.3-70b"
+
+# Status codes that mean "Groq said no, try someone else." 429 is rate
+# limit; 5xx is upstream failure. Anything else (e.g. 400 on a bad prompt)
+# we let surface — retrying won't help and would mask a real bug.
+RETRY_STATUSES = {429, 500, 502, 503, 504}
 
 # Whitelist of OpenAI chat-completions fields. Vapi attaches its own
 # context (assistant, call, customer, etc.) that Groq rejects with 400.
@@ -121,27 +131,56 @@ async def llm_proxy(request: Request) -> StreamingResponse:
         )
         body["messages"].insert(0, {"role": "system", "content": status_msg})
 
-    headers = {
-        "Authorization": f"Bearer {require('GROQ_API_KEY')}",
-        "Content-Type": "application/json",
-    }
     media_type = "text/event-stream" if body.get("stream") else "application/json"
 
     async def upstream():
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            async with client.stream(
-                "POST",
-                f"{GROQ_BASE_URL}/chat/completions",
-                json=body,
-                headers=headers,
-            ) as resp:
-                if resp.status_code >= 400:
-                    err = (await resp.aread()).decode("utf-8", errors="replace")
-                    logger.warning("Groq %s: %s", resp.status_code, err[:500])
-                    yield err.encode("utf-8")
-                    return
-                async for chunk in resp.aiter_bytes():
-                    yield chunk
+        # Try Groq first, then Cerebras on rate-limit or upstream failure.
+        # Both speak OpenAI chat-completions; only the model name differs.
+        providers = [
+            ("groq", GROQ_BASE_URL, GROQ_MODEL, require("GROQ_API_KEY")),
+        ]
+        if settings.CEREBRAS_API_KEY:
+            providers.append(
+                ("cerebras", CEREBRAS_BASE_URL, CEREBRAS_MODEL, settings.CEREBRAS_API_KEY)
+            )
+
+        for idx, (name, base, model, key) in enumerate(providers):
+            attempt = dict(body)
+            attempt["model"] = model
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            }
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{base}/chat/completions",
+                        json=attempt,
+                        headers=headers,
+                    ) as resp:
+                        if resp.status_code in RETRY_STATUSES and idx < len(providers) - 1:
+                            err = (await resp.aread()).decode("utf-8", errors="replace")
+                            logger.warning(
+                                "%s %s — falling back: %s",
+                                name, resp.status_code, err[:200],
+                            )
+                            continue
+                        if resp.status_code >= 400:
+                            err = (await resp.aread()).decode("utf-8", errors="replace")
+                            logger.warning("%s %s: %s", name, resp.status_code, err[:500])
+                            yield err.encode("utf-8")
+                            return
+                        async for chunk in resp.aiter_bytes():
+                            yield chunk
+                        return
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.ReadError) as exc:
+                if idx < len(providers) - 1:
+                    logger.warning("%s transport error — falling back: %s", name, exc)
+                    continue
+                logger.error("%s transport error, no fallback: %s", name, exc)
+                yield f'{{"error":{{"message":"{name} unavailable"}}}}'.encode()
+                return
 
     return StreamingResponse(upstream(), media_type=media_type)
 

@@ -12,7 +12,7 @@ Phase 1 of an 18-month product. Goal: 2 paying clients by end of week 12.
 | Layer | Technology | Notes |
 |---|---|---|
 | Voice pipeline | Vapi.ai | Handles Twilio + Deepgram STT + Cartesia TTS |
-| LLM | Groq + Llama 3.3 70B | Free tier primary. DeepSeek V3 fallback |
+| LLM | Groq + Llama 3.3 70B | Primary. Cerebras Llama 3.3 70B is the US-based fallback. DeepSeek was retired pre-launch: PRC data residency vs PIPEDA + Alberta HIA. |
 | Embeddings | sentence-transformers all-MiniLM-L6-v2 | Local, free, 384 dims |
 | Vector search | Supabase pgvector | No Pinecone in Phase 1 |
 | Database | Supabase (PostgreSQL) | Free tier |
@@ -176,16 +176,18 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# AI
+# AI — Groq primary, Cerebras fallback. DeepSeek removed: PRC data
+# residency conflicts with PIPEDA cross-border disclosure rules and
+# Alberta Health Information Act expectations for clinic custodians.
 GROQ_API_KEY=
-DEEPSEEK_API_KEY=
+CEREBRAS_API_KEY=
 
 # Vapi
 VAPI_API_KEY=
 
 # Email
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@carecallai.ca
+RESEND_FROM_EMAIL=noreply@carecallai.net
 
 # Stripe
 STRIPE_SECRET_KEY=
@@ -234,7 +236,7 @@ ruff
 3. Never store health information (symptoms, diagnoses, medications)
 4. AI disclosure must be first utterance of every call
 5. Embeddings auto-generated on every FAQ create/update — never stale
-6. Groq is primary LLM (free). DeepSeek is fallback. Never use GPT-4o in Phase 1.
+6. Groq is primary LLM. Cerebras (US-based) is the rate-limit/outage fallback. Never use DeepSeek (PRC data residency vs PIPEDA + Alberta HIA) and never use GPT-4o in Phase 1.
 7. sentence-transformers model loaded ONCE at startup, not per-request
 8. All errors caught in webhook handler — always return graceful fallback, never 500 to Vapi
 9. Stripe webhooks verified with signature before processing

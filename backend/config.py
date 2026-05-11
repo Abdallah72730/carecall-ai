@@ -14,7 +14,13 @@ class _Settings:
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+    # Cerebras Inference is our PIPEDA-friendly fallback when Groq is
+    # rate-limited or down. US-based, OpenAI-compatible API, same Llama
+    # 3.3 70B family. DeepSeek V3 was the original CLAUDE.md choice but
+    # was retired before launch because DeepSeek's PRC data residency
+    # is incompatible with Alberta Health Information Act expectations
+    # for clinic-side custodians.
+    CEREBRAS_API_KEY: str = os.getenv("CEREBRAS_API_KEY", "")
     VAPI_API_KEY: str = os.getenv("VAPI_API_KEY", "")
 
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
