@@ -257,7 +257,9 @@ ruff
 - **M11**: pilot onboarding + landing page + outreach
 
 ## Current status
-M0.1 scaffold complete (folders + config files). Next: M0.2.
+M0–M11 shipped. Backend on Railway, frontend on Vercel (carecallai.ca).
+Stripe billing, Sentry, Vapi per-clinic provisioning, blind/warm transfer all live.
+Maintenance phase: ruff clean, 19 unit tests green.
 
 ## Definition of Done (every task)
 - Code linted (ruff for Python, ESLint for TS)
