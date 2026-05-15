@@ -1,7 +1,7 @@
 """Unit tests for pure helper functions in routers/vapi.py."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from routers.vapi import _clean, _last_user_text, _parse_iso
 
