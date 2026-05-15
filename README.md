@@ -14,8 +14,8 @@ provisioning per-clinic Vapi assistants for pilot clients).
 
 | App | URL |
 |---|---|
-| Frontend (Vercel) | `https://frontend-five-gray-57.vercel.app` (alias) — target `carecallai.net` once DNS is wired |
-| Backend (Railway) | `https://backend-production-d0cf2.up.railway.app` — target `api.carecallai.net` |
+| Frontend (Vercel) | `https://app.carecallai.ca` (alias: `https://frontend-five-gray-57.vercel.app`) |
+| Backend (Railway) | `https://backend-production-d0cf2.up.railway.app` (target: `api.carecallai.ca`) |
 | Diagnostics | `/diag` on the frontend prints the resolved API base URL and a live `/health` probe |
 
 ## Monorepo layout
@@ -82,7 +82,7 @@ docs/                     ADRs, Vapi prompts, sample webhook payloads
 | Payments | Stripe | $99 CAD Pilot · $149 CAD Starter, Customer Portal enabled |
 | File storage | Cloudflare R2 | S3-compatible, document uploads (not yet wired) |
 | Monitoring | Sentry (backend) | + operator Telegram pings on milestones |
-| DNS | Cloudflare | `carecallai.net` and `api.carecallai.net` |
+| DNS | Cloudflare | `carecallai.ca`, `app.carecallai.ca`, `api.carecallai.ca` |
 
 ## End-to-end flow
 
@@ -166,7 +166,7 @@ VAPI_API_KEY=
 
 # Email
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@carecallai.net
+RESEND_FROM_EMAIL=noreply@carecallai.ca
 
 # Billing
 STRIPE_SECRET_KEY=                 # sk_test_... or sk_live_...
@@ -189,7 +189,7 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
 # App
-FRONTEND_URL=https://frontend-five-gray-57.vercel.app   # update once carecallai.net is live
+FRONTEND_URL=https://app.carecallai.ca
 TEST_CLINIC_ID=                                          # set from seed_faqs.py output
 SENTENCE_TRANSFORMERS_HOME=/tmp/models
 ```

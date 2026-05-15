@@ -50,7 +50,7 @@ def send_message_alert(
     try:
         resend.Emails.send(
             {
-                "from": settings.RESEND_FROM_EMAIL or "CareCall AI <noreply@carecallai.net>",
+                "from": settings.RESEND_FROM_EMAIL or "CareCall AI <noreply@carecallai.ca>",
                 "to": [clinic_email],
                 "subject": f"New after-hours message for {clinic_name}",
                 "html": html,
