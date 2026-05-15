@@ -58,7 +58,7 @@ export default function Home() {
             An AI receptionist that never misses a call.
           </h1>
           <p className="mt-5 text-lg text-slate-600">
-            CareCall AI answers your dental or healthcare clinic's phone 24/7,
+            CareCall AI answers your dental or healthcare clinic&apos;s phone 24/7,
             answers patient questions from your knowledge base, and captures
             after-hours messages so nothing falls through the cracks.
           </p>
