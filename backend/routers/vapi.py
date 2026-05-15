@@ -18,7 +18,7 @@ from services.clinics import (
 )
 from services.email import send_message_alert
 from services.hours import get_clinic_for_email, is_clinic_open
-from services.knowledge import format_all_faqs, get_all_faqs
+from services.knowledge import format_all_faqs, format_context, get_all_faqs, search_faqs
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/vapi", tags=["vapi"])
