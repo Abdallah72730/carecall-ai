@@ -115,23 +115,22 @@ captured_at timestamptz, email_sent bool DEFAULT false, is_read bool DEFAULT fal
 ## Backend API endpoints
 ```
 GET  /health                     -> {status, db}
-POST /vapi/llm                   -> Groq proxy (OpenAI-compatible streaming)
-POST /vapi/webhook               -> Main Vapi tool call handler
+POST /vapi/chat/completions      -> Groq proxy (OpenAI-compatible streaming)
+POST /vapi/webhook               -> Main Vapi tool call handler (get_clinic_info, save_message)
 POST /vapi/end-of-call           -> Call logging
-POST /vapi/save-message          -> After-hours message persistence
-GET  /admin/stats                -> {calls_today, calls_week, messages_week}
-GET  /admin/faqs                 -> List FAQs for clinic
-POST /admin/faqs                 -> Create FAQ (auto-embeds)
-PUT  /admin/faqs/{id}            -> Update FAQ (re-embeds if content changed)
-DELETE /admin/faqs/{id}          -> Delete FAQ
-GET  /admin/hours                -> Get 7-day hours for clinic
-PUT  /admin/hours                -> Upsert all 7 days at once
-GET  /admin/calls                -> Paginated call logs (filter: after_hours, date_range)
-GET  /admin/messages             -> After-hours messages (filter: unread)
-PATCH /admin/messages/{id}/read  -> Mark message as read
-POST /billing/checkout           -> Create Stripe Checkout session
-POST /billing/webhook            -> Stripe event handler
+POST /vapi/save-message          -> After-hours message persistence + email + Telegram
+GET  /admin/faqs                 -> List FAQs for clinic (JWT required)
+POST /admin/faqs                 -> Create FAQ, auto-embeds (JWT required)
+PUT  /admin/faqs/{id}            -> Update FAQ, re-embeds if content changed (JWT required)
+DELETE /admin/faqs/{id}          -> Delete FAQ (JWT required)
+POST /billing/checkout           -> Create Stripe Checkout session (JWT required)
+POST /billing/portal             -> Create Stripe Customer Portal session (JWT required)
+POST /billing/webhook            -> Stripe event handler (signature-verified)
 ```
+
+Note: dashboard data (stats, hours, call logs, messages) is read directly from Supabase
+by the Next.js server components via RLS — there are no `/admin/stats`, `/admin/hours`,
+`/admin/calls`, or `/admin/messages` backend endpoints.
 
 ## Vapi integration details
 - Vapi server URL: `https://api.yourdomain.ca/vapi/webhook`
