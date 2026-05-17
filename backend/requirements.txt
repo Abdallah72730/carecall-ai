@@ -8,6 +8,7 @@ resend
 sentry-sdk[fastapi]
 stripe
 pytz
+tzdata
 pydantic
 pytest
 pytest-cov
