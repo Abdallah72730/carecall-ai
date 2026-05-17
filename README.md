@@ -135,6 +135,8 @@ Apply migrations in the Supabase SQL Editor, in order:
 2. `backend/db/migrations/002_faq_search_rpc.sql` — vector similarity RPC
 3. `backend/db/migrations/003_stripe_columns.sql` — Stripe identifiers + status widening
 4. `backend/db/migrations/004_clinic_on_signup.sql` — auto-clinic-on-signup trigger
+5. `backend/db/migrations/005_transfer_number.sql` — `transfer_number` column for live call handoff
+6. `backend/db/migrations/006_signup_captures_transfer_number.sql` — signup trigger captures transfer number
 
 ### Seed the test clinic
 
