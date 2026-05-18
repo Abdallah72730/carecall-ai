@@ -138,6 +138,14 @@ Apply migrations in the Supabase SQL Editor, in order:
 5. `backend/db/migrations/005_transfer_number.sql` — `transfer_number` column for live call handoff
 6. `backend/db/migrations/006_signup_captures_transfer_number.sql` — signup trigger captures transfer number
 
+### Running tests
+
+```powershell
+cd backend
+# Always use the venv Python — system Python lacks tzdata (Windows)
+.venv\Scripts\python -m pytest tests/ -q
+```
+
 ### Seed the test clinic
 
 ```powershell
