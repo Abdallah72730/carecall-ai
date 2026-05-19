@@ -81,7 +81,7 @@ docs/                     ADRs, Vapi prompts, sample webhook payloads
 | Email | Resend | after-hours message alerts |
 | Payments | Stripe | $99 CAD Pilot · $149 CAD Starter, Customer Portal enabled |
 | File storage | Cloudflare R2 | S3-compatible, document uploads (not yet wired) |
-| Monitoring | Sentry (backend) | + operator Telegram pings on milestones |
+| Monitoring | Sentry (backend + frontend) | + operator Telegram pings on milestones |
 | DNS | Cloudflare | `carecallai.ca`, `app.carecallai.ca`, `api.carecallai.ca` |
 
 ## End-to-end flow
