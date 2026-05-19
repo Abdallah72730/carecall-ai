@@ -258,7 +258,7 @@ ruff
 ## Current status
 M0–M11 shipped. Backend on Railway, frontend on Vercel (carecallai.ca).
 Stripe billing, Sentry, Vapi per-clinic provisioning, blind/warm transfer all live.
-Maintenance phase: ruff clean, 19 unit tests green.
+Maintenance phase: ruff clean, ESLint clean, 47 unit tests green.
 
 ## Definition of Done (every task)
 - Code linted (ruff for Python, ESLint for TS)
