@@ -1,6 +1,7 @@
 """Vapi-facing endpoints: custom LLM proxy, webhook, end-of-call hook."""
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -282,9 +283,7 @@ def _handle_tool_calls(message: dict[str, Any]) -> dict:
         args = fn.get("arguments") or fn.get("parameters") or {}
         if isinstance(args, str):
             try:
-                import json as _json
-
-                args = _json.loads(args)
+                args = json.loads(args)
             except Exception:
                 args = {}
 
